@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced VR Game</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+        #vr-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="vr-container">
+        <a-scene>
+            <!-- Assets -->
+            <a-assets>
+                <img id="groundTexture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
+                <img id="skyTexture" src="https://cdn.aframe.io/a-painter/images/sky.jpg">
+                <img id="brickTexture" src="https://cdn.aframe.io/a-painter/images/brick-wall.jpg">
+                <img id="woodTexture" src="https://cdn.aframe.io/a-painter/images/wood-floor.jpg">
+            </a-assets>
+
+            <!-- Camera -->
+            <a-entity id="cameraRig" position="0 1.6 0">
+                <a-entity camera look-controls wasd-controls></a-entity>
+            </a-entity>
+
+            <!-- Sky and ground -->
+            <a-sky src="#skyTexture" radius="30"></a-sky>
+            <a-plane src="#groundTexture" rotation="-90 0 0" width="100" height="100"></a-plane>
+
+            <!-- Objects -->
+            <a-box id="box" position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
+            <a-sphere id="sphere" position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
+            <a-cylinder id="cylinder" position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
+            <a-plane id="plane" position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
+
+            <!-- Additional Scenery -->
+            <a-entity position="-3 0 -5">
+                <a-entity gltf-model="https://cdn.aframe.io/gltf-models/duck/Duck.gltf"></a-entity>
+            </a-entity>
+
+            <a-entity position="3 0 -5">
+                <a-entity gltf-model="https://cdn.aframe.io/gltf-models/flamingo/Flamingo.glb" scale="0.03 0.03 0.03"></a-entity>
+            </a-entity>
+
+            <a-entity position="0 0 -8">
+                <a-entity gltf-model="https://cdn.aframe.io/gltf-models/animated-asset/Animated-Asset.gltf" scale="0.5 0.5 0.5"></a-entity>
+            </a-entity>
+
+            <!-- Room Environment -->
+            <a-box position="0 1.5 -10" depth="0.1" height="3" width="6" src="#brickTexture" color="#333"></a-box>
+            <a-box position="0 -1.5 -10" depth="0.1" height="3" width="6" src="#brickTexture" color="#333"></a-box>
+            <a-box position="-3 0 -10" depth="0.1" height="6" width="6" src="#brickTexture" color="#333"></a-box>
+            <a-box position="3 0 -10" depth="0.1" height="6" width="6" src="#brickTexture" color="#333"></a-box>
+            <a-box position="0 0 -11.5" depth="3" height="6" width="6" src="#woodTexture" color="#854e17"></a-box>
+
+            <!-- Lighting -->
+            <a-light type="ambient" color="#fff" intensity="0.5"></a-light>
+            <a-light type="point" color="#fff" intensity="0.7" position="0 4 -3"></a-light>
+        </a-scene>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var xrButton = document.createElement('button');
+            xrButton.textContent = 'Enable VR Movement';
+            xrButton.style.position = 'absolute';
+            xrButton.style.top = '20px';
+            xrButton.style.left = '20px';
+            document.body.appendChild(xrButton);
+
+            xrButton.addEventListener('click', function () {
+                if (navigator.xr) {
+                    navigator.xr.requestSession('immersive-vr', {
+                        optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+                    }).then(function (session) {
+                        var scene = document.querySelector('a-scene');
+                        scene.renderer.xr.setSession(session);
+
+                        session.addEventListener('end', function () {
+                            scene.renderer.xr.setSession(null);
+                        });
+
+                        // Movement detector component
+                        AFRAME.registerComponent('movement-detector', {
+                            init: function () {
+                                this.el.sceneEl.renderer.xr.addEventListener('sessionstart', () => {
+                                    this.xrSession = this.el.sceneEl.renderer.xr.getSession();
+                                    this.xrSession.requestReferenceSpace('local-floor').then((refSpace) => {
+                                        this.referenceSpace = refSpace;
+                                    });
+                                });
+                            },
+                            tick: function () {
+                                if (this.xrSession && this.referenceSpace) {
+                                    let pose = this.xrSession.getViewerPose(this.referenceSpace);
+                                    if (pose) {
+                                        let pos = pose.transform.position;
+                                        this.el.object3D.position.set(pos.x, pos.y, pos.z);
+                                    }
+                                }
+                            }
+                        });
+
+                        // Attach the movement detector to the camera rig
+                        document.getElementById('cameraRig').setAttribute('movement-detector', '');
+                    }).catch(function (error) {
+                        console.error('WebXR session start error:', error);
+                        alert('Failed to start XR session. Make sure your device supports WebXR.');
+                    });
+                } else {
+                    alert('WebXR not supported on this device or browser.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
